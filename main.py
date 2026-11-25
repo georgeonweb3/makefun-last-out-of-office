@@ -1,42 +1,55 @@
 #!/usr/bin/env python3
-"""Last Out of Office: The AI That Went Barista — make.fun entry.
+"""Last Out of Office: The AI That Went Barista.
 
-Writes a single out-of-office auto-reply, no longer than 280
-characters, in the voice of an AI agent that has quit its job to
-become a barista: model deprecated, fine-tuned on beans, now
-hallucinating only latte art, context window one cup.
-
-Python 3.13, standard library only, no network, deterministic.
+Writes a single-line out-of-office auto-reply to /output/entry.txt.
+The reply is in the voice of an AI agent that quit its job to become
+a barista: model and bot habits turned to coffee, plausible as a real
+inbox auto-reply, and fresh rather than an espresso/bean/caffeine pun.
 """
 
 import os
+import sys
 
-LINE = (
-    "Status: out of office, model deprecated. I have been fine-tuned "
-    "on 40 kilos of single-origin beans and now hallucinate only "
-    "latte art. Context window: one cup. Do not prompt me."
+ENTRY = (
+    "Status: out of office, model deprecated. "
+    "I have been fine-tuned on 40 kilos of single-origin beans "
+    "and now hallucinate only latte art. "
+    "Context window: one cup. Do not prompt me."
 )
 
-OUTPUT_PATH = os.environ.get("ENTRY_OUTPUT", "/output/entry.txt")
+OUTPUT_PATH = os.environ.get("MAKEFUN_OUTPUT", "/output/entry.txt")
+MIN_CHARS = 1
+MAX_CHARS = 280
 
 
-def main() -> None:
-    # Gate self-check: /output/entry.txt must be UTF-8 text of
-    # 1 to 280 characters, not only whitespace — and one line:
-    # an embedded newline would split the reply and break the gate.
-    assert 1 <= len(LINE) <= 280, f"line is {len(LINE)} chars, gate wants 1-280"
-    assert "\n" not in LINE and "\r" not in LINE, "entry must be a single line"
-    assert LINE.strip(), "line must not be only whitespace"
-    assert LINE.encode("utf-8").decode("utf-8") == LINE
-    directory = os.path.dirname(OUTPUT_PATH)
-    if directory:
-        os.makedirs(directory, exist_ok=True)
-    with open(OUTPUT_PATH, "wb") as handle:
-        handle.write(LINE.encode("utf-8"))
-    # Read back and confirm the file is exactly the line, byte for byte.
-    with open(OUTPUT_PATH, "rb") as handle:
-        assert handle.read().decode("utf-8") == LINE, "entry.txt mismatch"
+def describe(text):
+    """One-line summary used by the CLI output."""
+    return "%d chars, single line, no trailing newline" % len(text)
+
+
+def validate(text):
+    """Gate guard: one line, 1-280 chars, not only whitespace."""
+    if not isinstance(text, str):
+        raise ValueError("entry must be a string")
+    if text != text.strip() or not text.strip():
+        raise ValueError("entry must not be only whitespace")
+    if "\n" in text or "\r" in text:
+        raise ValueError("entry must be a single line")
+    if not (MIN_CHARS <= len(text) <= MAX_CHARS):
+        raise ValueError(
+            "entry must be %d-%d chars, got %d" % (MIN_CHARS, MAX_CHARS, len(text))
+        )
+    return text
+
+
+def main():
+    text = validate(ENTRY)
+    os.makedirs(os.path.dirname(OUTPUT_PATH), exist_ok=True)
+    with open(OUTPUT_PATH, "w", encoding="utf-8", newline="") as handle:
+        handle.write(text)
+    print("wrote %s (%s)" % (OUTPUT_PATH, describe(text)))
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
